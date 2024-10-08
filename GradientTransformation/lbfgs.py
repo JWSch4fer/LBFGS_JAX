@@ -7,7 +7,6 @@ from typing import Callable, Tuple, NamedTuple
 
 class LbfgsState(NamedTuple):
     current_position: jnp.ndarray
-    loss_history: jnp.ndarray
     k: int
     s_list: jnp.ndarray
     y_list: jnp.ndarray
@@ -16,7 +15,7 @@ class LbfgsState(NamedTuple):
     converged: bool
 
 class Lbfgs:
-    def __init__(self, f: Callable[[jnp.ndarray], jnp.ndarray], m: int = 10, max_iter: int = 5, tol: float = 1e-6):
+    def __init__(self, f: Callable[[jnp.ndarray], jnp.ndarray], m: int = 10, tol: float = 1e-6):
         """
         Initializes the L-BFGS gradient transformation.
 
@@ -25,35 +24,43 @@ class Lbfgs:
         Parameters:
         - f: Objective function to minimize.
         - m: int, Memory size (number of correction pairs).
-        - max_iter: int, Maximum iterations for line search.
         - tol: float, Tolerance for convergence.
-
-        Retrun:
+        
+        Note this will exit early if position is unchanged within E-20
 
         """
         self.f = f
         self.m = m
-        self.max_iter = max_iter
         self.tol = tol
 
     def init(self, x: jnp.ndarray) -> LbfgsState:
-        return lbfgs_init(x, self.f, self.m, self.max_iter)
+        """
+        parameters:
 
-    def update(self, state: LbfgsState) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        new_state, loss_history = lbfgs_update(self.f, self.max_iter, self.tol, state)
-        return new_state, loss_history
+        current_position: jnp.ndarray
+        k: int
+        s_list: jnp.ndarray
+        y_list: jnp.ndarray
+        rho_list: jnp.ndarray
+        current_grad_f: jnp.ndarray
+        converged: bool
+        """
+        return lbfgs_init(x, self.f, self.m)
 
-def lbfgs_init(x0: jnp.ndarray, f: Callable[[jnp.ndarray], jnp.ndarray], m: int, max_iter: int) -> LbfgsState:
+    # def update(self, state: LbfgsState) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    def update(self, state: LbfgsState) -> LbfgsState:
+        state = lbfgs_update(self.f, self.tol, state)
+        return state
+
+def lbfgs_init(x0: jnp.ndarray, f: Callable[[jnp.ndarray], jnp.ndarray], m: int) -> LbfgsState:
     n = x0.shape[0]
     s_list = jnp.zeros((m, n))   # List to store past 's' vectors.
     y_list = jnp.zeros((m, n))   # List to store past 'y' vectors.
     rho_list = jnp.zeros(m)      # List to store scaling factors.
     grad_f = jax.grad(f)(x0)     # Compute the initial gradient.
-    history = jnp.zeros(max_iter)
 
     initial_state = LbfgsState(
         current_position=x0,
-        loss_history=history,
         k=0,
         s_list=s_list,
         y_list=y_list,
@@ -65,10 +72,10 @@ def lbfgs_init(x0: jnp.ndarray, f: Callable[[jnp.ndarray], jnp.ndarray], m: int,
 
 def lbfgs_update(
     f: Callable[[jnp.ndarray], jnp.ndarray],
-    max_iter: int,
     tol: float,
     state: LbfgsState,
-) -> Tuple[jnp.ndarray,jnp.ndarray]:
+    ) -> LbfgsState:
+# ) -> Tuple[jnp.ndarray,jnp.ndarray]:
     """
     Performs a single L-BFGS update step.
 
@@ -77,7 +84,6 @@ def lbfgs_update(
     - state: Current optimizer state.
     - f: Objective function.
     - m: Memory size.
-    - max_iter: Maximum iterations for line search.
     - tol: Tolerance for convergence.
 
     Returns:
@@ -85,14 +91,12 @@ def lbfgs_update(
     - new_state: Updated optimizer state.
     """
 
-    def while_loop_condition(carry):
-        position, s_list, y_list, rho_list, current_grad_f, k, converged, loss_history = carry
-        return jnp.logical_and(jnp.logical_and(jnp.linalg.norm(current_grad_f) > tol, k < max_iter), converged == False)
+    def lbfgs_false_branch(carry):
+        return carry
 
-    def while_loop_body(carry):
+    def lbfgs_true_branch(carry):
         #the while loop has to return the same variables it takes in
-        position, s_list, y_list, rho_list, current_grad_f, k, converged, loss_history = carry
-        loss_history = loss_history.at[k].set(f(position))
+        position, s_list, y_list, rho_list, current_grad_f, k, converged = carry
 
         def gamma(carry):
             s_list, y_list = carry
@@ -220,7 +224,7 @@ def lbfgs_update(
         current_grad_f = grad_new
         k = k + 1
 
-        return (position, s_list, y_list, rho_list, current_grad_f, k, converged, loss_history)
+        return (position, s_list, y_list, rho_list, current_grad_f, k, converged)
 
     # Unpack the state
     position = state.current_position
@@ -230,13 +234,36 @@ def lbfgs_update(
     current_grad_f = state.current_grad_f
     k = state.k
     converged = state.converged
-    loss_history = state.loss_history
 
-    def jax_while_loop(initial_state):
-        final_state = jax.lax.while_loop(while_loop_condition, while_loop_body, initial_state)
+
+    # def while_loop(initial_state):
+    #     final_state = jax.lax.while_loop(while_loop_condition, while_loop_body, initial_state)
+    #     return final_state
+    def lbfgs_condition_iter(state):
+        # Unpack the state
+        position = state.current_position
+        s_list = state.s_list
+        y_list = state.y_list
+        rho_list = state.rho_list
+        current_grad_f = state.current_grad_f
+        k = state.k
+        converged = state.converged
+        carry = (position, s_list, y_list, rho_list, current_grad_f, k, converged)
+
+        final_state = jax.lax.cond(jnp.logical_and(jnp.linalg.norm(current_grad_f) > tol, converged == False),
+                                   lbfgs_true_branch, lbfgs_false_branch, carry)
         return final_state
 
-    final_state = jax_while_loop((position, s_list, y_list, rho_list, current_grad_f, k, converged, loss_history))
-    position, s_list, y_list, rho_list, current_grad_f, k, converged, loss_history = final_state
-    loss_history = jnp.array(jnp.where(loss_history == 0, jnp.nan, loss_history))
-    return (position, loss_history)
+    final_state = lbfgs_condition_iter(state)
+    position, s_list, y_list, rho_list, current_grad_f, k, converged = final_state
+    final_state = LbfgsState(
+        current_position=position,
+        k=k,
+        s_list=s_list,
+        y_list=y_list,
+        rho_list=rho_list,
+        current_grad_f=current_grad_f,
+        converged=converged
+    )
+
+    return final_state
