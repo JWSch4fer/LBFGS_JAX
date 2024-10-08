@@ -6,12 +6,12 @@ from typing import Callable, Tuple, NamedTuple
 
 
 class LbfgsState(NamedTuple):
-    current_position: jnp.ndarray
+    position: jnp.ndarray
     k: int
     s_list: jnp.ndarray
     y_list: jnp.ndarray
     rho_list: jnp.ndarray
-    current_grad_f: jnp.ndarray
+    grad_f: jnp.ndarray
     converged: bool
 
 class Lbfgs:
@@ -37,17 +37,16 @@ class Lbfgs:
         """
         parameters:
 
-        current_position: jnp.ndarray
+        position: jnp.ndarray
         k: int
         s_list: jnp.ndarray
         y_list: jnp.ndarray
         rho_list: jnp.ndarray
-        current_grad_f: jnp.ndarray
+        grad_f: jnp.ndarray
         converged: bool
         """
         return lbfgs_init(x, self.f, self.m)
 
-    # def update(self, state: LbfgsState) -> Tuple[jnp.ndarray, jnp.ndarray]:
     def update(self, state: LbfgsState) -> LbfgsState:
         state = lbfgs_update(self.f, self.tol, state)
         return state
@@ -60,12 +59,12 @@ def lbfgs_init(x0: jnp.ndarray, f: Callable[[jnp.ndarray], jnp.ndarray], m: int)
     grad_f = jax.grad(f)(x0)     # Compute the initial gradient.
 
     initial_state = LbfgsState(
-        current_position=x0,
+        position=x0,
         k=0,
         s_list=s_list,
         y_list=y_list,
         rho_list=rho_list,
-        current_grad_f=grad_f,
+        grad_f=grad_f,
         converged=False
     )
     return initial_state
@@ -75,7 +74,6 @@ def lbfgs_update(
     tol: float,
     state: LbfgsState,
     ) -> LbfgsState:
-# ) -> Tuple[jnp.ndarray,jnp.ndarray]:
     """
     Performs a single L-BFGS update step.
 
@@ -95,7 +93,6 @@ def lbfgs_update(
         return carry
 
     def lbfgs_true_branch(carry):
-        #the while loop has to return the same variables it takes in
         position, s_list, y_list, rho_list, current_grad_f, k, converged = carry
 
         def gamma(carry):
@@ -191,12 +188,11 @@ def lbfgs_update(
         position, current_grad_f, step_size, c1, pK = carry
 
         # Update position and gradient.
-        position_new = position + step_size * pK        # Update position.
+        position_new = position + step_size * pK              # Update position.
         grad_new = jax.grad(f)(position_new)                  # Compute new gradient.
-        sk = position_new - position                    # Compute s_k.
+        sk = position_new - position                          # Compute s_k.
         converged = jnp.all(jnp.isclose(sk, 0.0, atol=1e-20)) # exit early if the solution is converged
-        yk = grad_new - current_grad_f                  # Compute y_k.
-
+        yk = grad_new - current_grad_f                        # Compute y_k.
 
         # Update s_list, y_list, rho_list
         def true_branch(carry):
@@ -219,7 +215,6 @@ def lbfgs_update(
         carry = jax.lax.cond(jnp.dot(sk,yk) > jnp.float32(1e-10), true_branch, false_branch, (s_list, y_list, rho_list, sk, yk))
         s_list, y_list, rho_list, sk, yk = carry
 
-
         position = position_new
         current_grad_f = grad_new
         k = k + 1
@@ -227,25 +222,21 @@ def lbfgs_update(
         return (position, s_list, y_list, rho_list, current_grad_f, k, converged)
 
     # Unpack the state
-    position = state.current_position
+    position = state.position
     s_list = state.s_list
     y_list = state.y_list
     rho_list = state.rho_list
-    current_grad_f = state.current_grad_f
+    current_grad_f = state.grad_f
     k = state.k
     converged = state.converged
 
-
-    # def while_loop(initial_state):
-    #     final_state = jax.lax.while_loop(while_loop_condition, while_loop_body, initial_state)
-    #     return final_state
     def lbfgs_condition_iter(state):
         # Unpack the state
-        position = state.current_position
+        position = state.position
         s_list = state.s_list
         y_list = state.y_list
         rho_list = state.rho_list
-        current_grad_f = state.current_grad_f
+        current_grad_f = state.grad_f
         k = state.k
         converged = state.converged
         carry = (position, s_list, y_list, rho_list, current_grad_f, k, converged)
@@ -257,12 +248,12 @@ def lbfgs_update(
     final_state = lbfgs_condition_iter(state)
     position, s_list, y_list, rho_list, current_grad_f, k, converged = final_state
     final_state = LbfgsState(
-        current_position=position,
+        position=position,
         k=k,
         s_list=s_list,
         y_list=y_list,
         rho_list=rho_list,
-        current_grad_f=current_grad_f,
+        grad_f=current_grad_f,
         converged=converged
     )
 

@@ -26,29 +26,18 @@ def main():
     x0 = jax.random.uniform(key1, shape=(n,), minval=-4, maxval=4)
 
     # Instantiate the L-BFGS optimizer
-    # optimizer = Lbfgs(f=loss, m=10, max_iter=10000, tol=1e-6)
-
-    # Initialize optimizer state
-    # opt_state = optimizer.init(x0)
-    # final_position, loss_history = optimizer.update(opt_state)
-    # final_value = loss(final_position)
-
-    # Instantiate the L-BFGS optimizer
     optimizer = Lbfgs(f=loss, m=10, tol=1e-6)
 
     # Initialize optimizer state
     opt_state = optimizer.init(x0)
 
-    # @jax.jit
+    @jax.jit
     def opt_step(carry, _):
         opt_state, losses = carry
         opt_state = optimizer.update(opt_state)
-        losses = losses.at[opt_state.k].set(loss(opt_state.current_position))
+        losses = losses.at[opt_state.k].set(loss(opt_state.position))
         return (opt_state, losses), _
 
-    # solver = optax.adadelta(learning_rate=1.)
-    # x_0 = jnp.concatenate([one_body_init.ravel(), two_body_init.ravel()])
-    # opt_state = optimizer.init(x_0)
     iterations=10000
     losses = jnp.zeros((iterations,))
     (final_state, losses), _ = jax.lax.scan(opt_step, (opt_state,losses), None, length=iterations)
@@ -56,8 +45,8 @@ def main():
 
     print(final_state)
 
-    print("Estimated minimum position:", final_state.current_position)
-    print("Function value at minimum:", loss(final_state.current_position))
+    print("Estimated minimum position:", final_state.position)
+    print("Function value at minimum:", loss(final_state.position))
     # print("_______________________________________")
 
 if __name__ == "__main__":

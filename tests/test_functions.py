@@ -18,17 +18,21 @@ def test_lbfgs_easom_minimization():
     x0 = jnp.array([3.0, 3.0])  # Start at (0,0), a local maximum
 
     # Instantiate the L-BFGS optimizer
-    lbfgs = Lbfgs(f=easom, m=10, max_iter=100, tol=1e-6)
+    optimizer = Lbfgs(f=easom, m=10, tol=1e-6)
 
     # Initialize optimizer state
-    opt_state = lbfgs.init(x0)
+    opt_state = optimizer.init(x0)
 
-    # Run the optimization loop using lax.scan
-    x_final, losses = lbfgs.update(opt_state)
+    def opt_step(carry, _):
+        opt_state, losses = carry
+        opt_state = optimizer.update(opt_state)
+        losses = losses.at[opt_state.k].set(easom(opt_state.position))
+        return (opt_state, losses), _
 
-    # Extract the final position and function value
-    final_position = x_final
-    final_value = easom(final_position)
+    iterations=10000
+    losses = jnp.zeros((iterations,))
+    (final_state, losses), _ = jax.lax.scan(opt_step, (opt_state,losses), None, length=iterations)
+    losses = jnp.array(jnp.where(losses == 0, jnp.nan, losses))
 
     # Define the expected minimum position and value
     expected_position = jnp.array([jnp.pi, jnp.pi])
@@ -39,11 +43,11 @@ def test_lbfgs_easom_minimization():
     value_tol = 1e-3
 
     # Assertions
-    assert jnp.allclose(final_position, expected_position, atol=position_tol), \
-        f"Final position {final_position} is not close to expected {expected_position}"
+    assert jnp.allclose(final_state.position, expected_position, atol=position_tol), \
+        f"Final position final position is not close to expected {expected_position}"
 
-    assert jnp.abs(final_value - expected_value) < value_tol, \
-        f"Final function value {final_value} is not close to expected {expected_value}"
+    assert jnp.abs(easom(final_state.position) - expected_value) < value_tol, \
+        f"Final function value final value is not close to expected {expected_value}"
 
 def test_lbfgs_rastrigin_minimization():
     """
@@ -57,17 +61,21 @@ def test_lbfgs_rastrigin_minimization():
     x0 = jnp.array([3.0, 3.0])  # Start at (0,0), a local maximum
 
     # Instantiate the L-BFGS optimizer
-    lbfgs = Lbfgs(f=rastrigin, m=10, max_iter=100, tol=1e-6)
+    optimizer = Lbfgs(f=rastrigin, m=10, tol=1e-6)
 
     # Initialize optimizer state
-    opt_state = lbfgs.init(x0)
+    opt_state = optimizer.init(x0)
 
-    # Run the optimization loop using lax.scan
-    x_final, losses = lbfgs.update(opt_state)
+    def opt_step(carry, _):
+        opt_state, losses = carry
+        opt_state = optimizer.update(opt_state)
+        losses = losses.at[opt_state.k].set(rastrigin(opt_state.position))
+        return (opt_state, losses), _
 
-    # Extract the final position and function value
-    final_position = x_final
-    final_value = rastrigin(final_position)
+    iterations=10000
+    losses = jnp.zeros((iterations,))
+    (final_state, losses), _ = jax.lax.scan(opt_step, (opt_state,losses), None, length=iterations)
+    losses = jnp.array(jnp.where(losses == 0, jnp.nan, losses))
 
     # Define the expected minimum position and value
     expected_position = jnp.array([0,0])
@@ -78,12 +86,9 @@ def test_lbfgs_rastrigin_minimization():
     value_tol = 1e-3
 
     # Assertions
-    assert jnp.allclose(final_position, expected_position, atol=position_tol), \
-        f"Final position {final_position} is not close to expected {expected_position}"
+    assert jnp.allclose(final_state.position, expected_position, atol=position_tol), \
+        f"Final position final position is not close to expected {expected_position}"
 
-    assert jnp.abs(final_value - expected_value) < value_tol, \
-        f"Final function value {final_value} is not close to expected {expected_value}"
-
-
-
+    assert jnp.abs(rastrigin(final_state.position) - expected_value) < value_tol, \
+        f"Final function value final value is not close to expected {expected_value}"
 
