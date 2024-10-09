@@ -2,12 +2,12 @@
 
 ## Features
 
-- Implements the Limited-memory BFGS [BFGS](https://en.wikipedia.org/wiki/Limited-memory_BFGS) algorithm.
+- Implements the Limited-memory [BFGS](https://en.wikipedia.org/wiki/Limited-memory_BFGS) algorithm.
 - JIT/vmap/pmap compatible for performance with JAX.
 
 ## Usage
 Define a function to minimize
-```
+```python
 def func(x): 
     jnp.sum((-1*coefficients + x)**2)
 ```
@@ -16,13 +16,12 @@ Call Lbfgs
 -f: function to minimize
 -m: number of previous iterations to store in memory
 -tol: tolerance of convergence
-```
+```python
 optimizer = Lbfgs(f=func, m=10, tol=1e-6)
-
 ```
 
 iterate to find minimum
-```
+```python
 # Initialize optimizer state
 opt_state = optimizer.init(x0)
 
