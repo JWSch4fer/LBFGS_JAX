@@ -47,9 +47,8 @@ def main():
 
     print("Estimated minimum position:", final_state.position)
     print("Function value at minimum:", loss(final_state.position))
+    print("k: ", final_state.k)
     # print("_______________________________________")
 
 if __name__ == "__main__":
     main()
-
-

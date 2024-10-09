@@ -4,7 +4,7 @@ from GradientTransformation import Lbfgs
 
 def n_dim_quadratic(x: jnp.ndarray, dtype= jnp.float32) -> jnp.ndarray:
     """
-    general quadratic function with increasing minima
+    general quadratic function with minimum increasing by 1 for each vector dimension
 
     minimum is increasing integers starting from 0
 
@@ -25,7 +25,7 @@ def main():
 
     # Split the key
     key1, _ = jax.random.split(key, 2)    # Initialize PRNG key
-    x0 = jax.random.uniform(key1, shape=(n,), minval=-4, maxval=4)
+    x0 = jax.random.uniform(key1, shape=(n,), minval=-40, maxval=40)
 
     # Instantiate the L-BFGS optimizer
     optimizer = Lbfgs(f=loss, m=10, tol=1e-6)
@@ -47,9 +47,8 @@ def main():
 
     print("Estimated minimum position:", final_state.position)
     print("Function value at minimum:", loss(final_state.position))
+    print("k: ", final_state.k)
     print("_______________________________________")
 
 if __name__ == "__main__":
     main()
-
-
