@@ -8,29 +8,28 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lbfgs-optimizer"
-version = "0.1.0"
+name = "GradientTransformation"
+version = "1.0.0"
 description = "A JAX-based L-BFGS optimizer"
-readme = "README.md"
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
     { name = "Joseph Schafer", email = "joeschafer28@gmail.com" }
 ]
-keywords = ["jax", "optax", "optimizer", "lbfgs", "optimization"]
+keywords = ["jax", "optimizer", "lbfgs", "optimization"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+"jax>=0.4.28",
+"jaxlib>=0.4.28",
+]
 
 [project.urls]
 "Repository" = "https://github.com/JWSch4fer/LBFGS_JAX"
-
-[project.dependencies]
-jax = ">=0.4.28"
-jaxlib = ">=0.4.28"
-optax = ">=0.2.2"
 
 [tool.setuptools.packages.find]
 where = ["."]
