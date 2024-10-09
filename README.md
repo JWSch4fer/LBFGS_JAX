@@ -6,7 +6,16 @@
 - JIT/vmap/pmap compatible for performance with JAX.
 - Note requirements.txt is setup for JAX[CPU]
 
+## Installation
+```
+pip install GradientTransformation
+```
+
 ## Usage
+*NOTE*: This example is a simple quadratic function.\
+1000-dimensional Rosenbrock solved in 4038 steps, see repo
+
+
 Define a function to minimize
 ```python
 def func(x): 
@@ -67,9 +76,4 @@ Function value at minimum: 5.7412694e-29
 k:  2   #<-- stops early if gradient norm is less than tol!!
 ```
 
-*NOTE*: Examples has the quadratic function and the Rosenbrock function.\
-1000-dimensional Rosenbrock solved in 4038 steps
-
-
-## Installation
 
