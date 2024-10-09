@@ -18,6 +18,8 @@ pip install GradientTransformation
 
 Define a function to minimize
 ```python
+from GradientTransformation import Lbfgs
+
 def func(x): 
     jnp.sum((-1*coefficients + x)**2)
 ```
